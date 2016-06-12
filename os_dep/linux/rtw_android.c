@@ -37,6 +37,9 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #endif
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0))
+#define strnicmp strncasecmp
+#endif
 
 extern void macstr2num(u8 *dst, u8 *src);
 
