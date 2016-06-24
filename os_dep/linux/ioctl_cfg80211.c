@@ -909,7 +909,11 @@ void rtw_cfg80211_indicate_disconnect(_adapter *padapter)
 		#else
 
 		if(check_fwstate(&padapter->mlmepriv, _FW_LINKED))		
-			cfg80211_disconnected(padapter->pnetdev, 0, NULL, 0, GFP_ATOMIC);
+			#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0))
+						cfg80211_disconnected(padapter->pnetdev, 0, NULL, 0, true, GFP_ATOMIC);
+			#else
+						cfg80211_disconnected(padapter->pnetdev, 0, NULL, 0, GFP_ATOMIC);
+			#endif
 		else
 			cfg80211_connect_result(padapter->pnetdev, NULL, NULL, 0, NULL, 0, 
 				WLAN_STATUS_UNSPECIFIED_FAILURE, GFP_ATOMIC/*GFP_KERNEL*/);
@@ -1825,16 +1829,32 @@ static int cfg80211_rtw_get_station(struct wiphy *wiphy,
 			goto exit;
 		}
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,0,0))
+		sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
+#else
 		sinfo->filled |= STATION_INFO_SIGNAL;
+#endif
 		sinfo->signal = translate_percentage_to_dbm(padapter->recvpriv.signal_strength);
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,0,0))
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_BITRATE);
+#else
 		sinfo->filled |= STATION_INFO_TX_BITRATE;
+#endif
 		sinfo->txrate.legacy = rtw_get_cur_max_rate(padapter);
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,0,0))
+		sinfo->filled |= BIT(NL80211_STA_INFO_RX_PACKETS);
+#else
 		sinfo->filled |= STATION_INFO_RX_PACKETS;
+#endif
 		sinfo->rx_packets = sta_rx_data_pkts(psta);
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,0,0))
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_PACKETS);
+#else
 		sinfo->filled |= STATION_INFO_TX_PACKETS;
+#endif
 		sinfo->tx_packets = psta->sta_stats.tx_pkts;
 
 	}
@@ -1936,7 +1956,10 @@ static int cfg80211_rtw_change_iface(struct wiphy *wiphy,
 		pmlmeext->action_public_rxseq = 0xffff;
 		pmlmeext->action_public_dialog_token = 0xff;
 	}	
-		
+
+	/* initial default type */
+	ndev->type = ARPHRD_ETHER;
+
 	switch (type) {
 	case NL80211_IFTYPE_ADHOC:
 		networkType = Ndis802_11IBSS;
@@ -1975,7 +1998,11 @@ static int cfg80211_rtw_change_iface(struct wiphy *wiphy,
 			}
 		}
 		#endif //CONFIG_P2P
-		break;		
+		break;
+	case NL80211_IFTYPE_MONITOR:
+		networkType = Ndis802_11Monitor;
+		ndev->type = ARPHRD_IEEE80211_RADIOTAP; /* IEEE 802.11 + radiotap header : 803 */
+		break;
 	default:
 		ret = -EOPNOTSUPP;
 		goto exit;
@@ -3573,7 +3600,9 @@ void rtw_cfg80211_indicate_sta_assoc(_adapter *padapter, u8 *pmgmt_frame, uint f
 			ie_offset = _REASOCREQ_IE_OFFSET_;
 	
 		sinfo.filled = 0;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,0,0))
 		sinfo.filled = STATION_INFO_ASSOC_REQ_IES;
+#endif
 		sinfo.assoc_req_ies = pmgmt_frame + WLAN_HDR_A3_LEN + ie_offset;
 		sinfo.assoc_req_ies_len = frame_len - WLAN_HDR_A3_LEN - ie_offset;
 		cfg80211_new_sta(ndev, GetAddr2Ptr(pmgmt_frame), &sinfo, GFP_ATOMIC);
@@ -3869,7 +3898,11 @@ static const struct net_device_ops rtw_cfg80211_monitor_if_ops = {
 };
 #endif
 
-static int rtw_cfg80211_add_monitor_if(_adapter *padapter, char *name, struct net_device **ndev)
+static int rtw_cfg80211_add_monitor_if(_adapter *padapter, char *name,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0))
+		unsigned char name_assign_type,
+#endif
+		struct net_device **ndev)
 {
 	int ret = 0;
 	struct net_device* mon_ndev = NULL;
@@ -3900,6 +3933,9 @@ static int rtw_cfg80211_add_monitor_if(_adapter *padapter, char *name, struct ne
 	mon_ndev->type = ARPHRD_IEEE80211_RADIOTAP;
 	strncpy(mon_ndev->name, name, IFNAMSIZ);
 	mon_ndev->name[IFNAMSIZ - 1] = 0;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0))
+	mon_ndev->name_assign_type = name_assign_type;
+#endif
 	mon_ndev->destructor = rtw_ndev_destructor;
 	
 #if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,29))
@@ -3964,6 +4000,9 @@ static int
 	#else
 		char *name,
 	#endif
+	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0))
+		unsigned char name_assign_type,
+	#endif
 		enum nl80211_iftype type, u32 *flags, struct vif_params *params)
 {
 	int ret = 0;
@@ -3981,7 +4020,11 @@ static int
 		ret = -ENODEV;
 		break;
 	case NL80211_IFTYPE_MONITOR:
-		ret = rtw_cfg80211_add_monitor_if(padapter, (char *)name, &ndev);
+		ret = rtw_cfg80211_add_monitor_if(padapter, (char *)name,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0))
+				name_assign_type,
+#endif
+				&ndev);
 		break;
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37)) || defined(COMPAT_KERNEL_RELEASE)
@@ -4280,8 +4323,10 @@ exit:
 static int	cfg80211_rtw_del_station(struct wiphy *wiphy, struct net_device *ndev,
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3,16,0))
 				u8 *mac
-#else
+#elif (LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0))
 				const u8 *mac
+#else
+				struct station_del_parameters *params
 #endif
 			       )
 {
@@ -4289,6 +4334,7 @@ static int	cfg80211_rtw_del_station(struct wiphy *wiphy, struct net_device *ndev
 	_irqL irqL;
 	_list	*phead, *plist;
 	u8 updated = _FALSE;
+	const u8 *target_mac;
 	struct sta_info *psta = NULL;
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(ndev);
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
@@ -4296,14 +4342,20 @@ static int	cfg80211_rtw_del_station(struct wiphy *wiphy, struct net_device *ndev
 
 	DBG_871X("+"FUNC_NDEV_FMT"\n", FUNC_NDEV_ARG(ndev));
 
-	if(check_fwstate(pmlmepriv, (_FW_LINKED|WIFI_AP_STATE)) != _TRUE)		
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0))
+	target_mac = mac;
+#else
+	target_mac = params->mac;
+#endif
+
+	if(check_fwstate(pmlmepriv, (_FW_LINKED|WIFI_AP_STATE)) != _TRUE)
 	{
 		DBG_8192C("%s, fw_state != FW_LINKED|WIFI_AP_STATE\n", __func__);
 		return -EINVAL;		
 	}
 
 
-	if(!mac)
+	if(!target_mac)
 	{
 		DBG_8192C("flush all sta, and cam_entry\n");
 
@@ -4315,11 +4367,11 @@ static int	cfg80211_rtw_del_station(struct wiphy *wiphy, struct net_device *ndev
 	}	
 
 
-	DBG_8192C("free sta macaddr =" MAC_FMT "\n", MAC_ARG(mac));
+	DBG_8192C("free sta macaddr =" MAC_FMT "\n", MAC_ARG(target_mac));
 
-	if (mac[0] == 0xff && mac[1] == 0xff &&
-	    mac[2] == 0xff && mac[3] == 0xff &&
-	    mac[4] == 0xff && mac[5] == 0xff) 
+	if (target_mac[0] == 0xff && target_mac[1] == 0xff &&
+	    target_mac[2] == 0xff && target_mac[3] == 0xff &&
+	    target_mac[4] == 0xff && target_mac[5] == 0xff)
 	{
 		return -EINVAL;	
 	}
@@ -4337,7 +4389,7 @@ static int	cfg80211_rtw_del_station(struct wiphy *wiphy, struct net_device *ndev
 		
 		plist = get_next(plist);	
 	
-		if(_rtw_memcmp((u8 *)mac, psta->hwaddr, ETH_ALEN))		
+		if(_rtw_memcmp((u8 *)target_mac, psta->hwaddr, ETH_ALEN))
 		{
 			if(psta->dot8021xalg == 1 && psta->bpairwise_key_installed == _FALSE)
 			{
@@ -4391,7 +4443,8 @@ static int	cfg80211_rtw_change_station(struct wiphy *wiphy, struct net_device *n
 
 struct sta_info *rtw_sta_info_get_by_idx(const int idx, struct sta_priv *pstapriv)
 
-{
+{
+
 	_list	*phead, *plist;
 	struct sta_info *psta = NULL;
 	int i = 0;
@@ -4431,7 +4484,11 @@ static int	cfg80211_rtw_dump_station(struct wiphy *wiphy, struct net_device *nde
 	}
 	_rtw_memcpy(mac, psta->hwaddr, ETH_ALEN);
 	sinfo->filled = 0;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,0,0))
+	sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
+#else
 	sinfo->filled |= STATION_INFO_SIGNAL;
+#endif
 	sinfo->signal = psta->rssi;
 	
 exit:
@@ -4467,10 +4524,37 @@ static int	cfg80211_rtw_set_channel(struct wiphy *wiphy
 	#endif
 	, struct ieee80211_channel *chan, enum nl80211_channel_type channel_type)
 {
+	int chan_target = (u8) ieee80211_frequency_to_channel(chan->center_freq);
+	int chan_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+	int chan_width = CHANNEL_WIDTH_20;
+	_adapter *padapter = wiphy_to_adapter(wiphy);
+
 	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,35))
 	DBG_871X(FUNC_NDEV_FMT"\n", FUNC_NDEV_ARG(ndev));
 	#endif
-	
+
+	switch (channel_type) {
+	case NL80211_CHAN_NO_HT:
+	case NL80211_CHAN_HT20:
+		chan_width = CHANNEL_WIDTH_20;
+		chan_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+		break;
+	case NL80211_CHAN_HT40MINUS:
+		chan_width = CHANNEL_WIDTH_40;
+		chan_offset = HAL_PRIME_CHNL_OFFSET_UPPER;
+		break;
+	case NL80211_CHAN_HT40PLUS:
+		chan_width = CHANNEL_WIDTH_40;
+		chan_offset = HAL_PRIME_CHNL_OFFSET_LOWER;
+		break;
+	default:
+		chan_width = CHANNEL_WIDTH_20;
+		chan_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+		break;
+	}
+
+	set_channel_bwmode(padapter, chan_target, chan_offset, chan_width);
+
 	return 0;
 }
 
@@ -4877,12 +4961,14 @@ static s32 cfg80211_rtw_remain_on_channel(struct wiphy *wiphy,
 
 	if(pcfg80211_wdinfo->is_ro_ch == _TRUE)
 	{
+		pcfg80211_wdinfo->not_indic_ro_ch_exp = _TRUE;
 		DBG_8192C("%s, cancel ro ch timer\n", __func__);
 		_cancel_timer_ex(&padapter->cfg80211_wdinfo.remain_on_ch_timer);
 		#ifdef CONFIG_CONCURRENT_MODE
 		ATOMIC_SET(&pwdev_priv->ro_ch_to, 1);
 		#endif //CONFIG_CONCURRENT_MODE
 		p2p_protocol_wk_hdl(padapter, P2P_RO_CH_WK);
+		pcfg80211_wdinfo->not_indic_ro_ch_exp = _FALSE;
 	}
 
 	pcfg80211_wdinfo->is_ro_ch = _TRUE;
@@ -5070,12 +5156,14 @@ static s32 cfg80211_rtw_cancel_remain_on_channel(struct wiphy *wiphy,
 	DBG_871X(FUNC_ADPT_FMT" cookie:0x%llx\n", FUNC_ADPT_ARG(padapter), cookie);
 
 	if (pcfg80211_wdinfo->is_ro_ch == _TRUE) {
+		pcfg80211_wdinfo->not_indic_ro_ch_exp = _TRUE;
 		DBG_8192C("%s, cancel ro ch timer\n", __func__);
 		_cancel_timer_ex(&padapter->cfg80211_wdinfo.remain_on_ch_timer);
 		#ifdef CONFIG_CONCURRENT_MODE
 		ATOMIC_SET(&pwdev_priv->ro_ch_to, 1);
 		#endif
 		p2p_protocol_wk_hdl(padapter, P2P_RO_CH_WK);
+		pcfg80211_wdinfo->not_indic_ro_ch_exp = _FALSE;
 	}
 
 	#if 0
@@ -6046,7 +6134,13 @@ static void rtw_cfg80211_init_ht_capab(struct ieee80211_sta_ht_cap *ht_cap, enum
 
 	ht_cap->ht_supported = _TRUE;
 
-	ht_cap->cap = IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
+	/* According to the comment in rtw_ap.c:
+	 * "Note: currently we switch to the MIXED op mode if HT non-greenfield
+	 * station is associated. Probably it's a theoretical case, since
+	 * it looks like all known HT STAs support greenfield."
+	 * Therefore Greenfield is added to ht_cap
+	 */
+	 ht_cap->cap = IEEE80211_HT_CAP_SUP_WIDTH_20_40 | IEEE80211_HT_CAP_GRN_FLD |
 	    				IEEE80211_HT_CAP_SGI_40 | IEEE80211_HT_CAP_SGI_20 |
 	    				IEEE80211_HT_CAP_DSSSCCK40 | IEEE80211_HT_CAP_MAX_AMSDU;
 
@@ -6094,6 +6188,92 @@ static void rtw_cfg80211_init_ht_capab(struct ieee80211_sta_ht_cap *ht_cap, enum
 	
 }
 
+static void rtw_cfg80211_init_vht_capab_ex(_adapter *padapter, struct ieee80211_sta_vht_cap *vht_cap, u8 rf_type)
+{
+//todo: Support for other bandwidths
+
+/* NSS = Number of Spatial Streams */
+#define MAX_BIT_RATE_80MHZ_NSS3		1300	/* Mbps */
+#define MAX_BIT_RATE_80MHZ_NSS2		867		/* Mbps */
+#define MAX_BIT_RATE_80MHZ_NSS1		434		/* Mbps */
+
+	struct registry_priv *pregistrypriv = &padapter->registrypriv;
+	struct mlme_priv	*pmlmepriv = &padapter->mlmepriv;
+	struct vht_priv	*pvhtpriv = &pmlmepriv->vhtpriv;
+
+	rtw_vht_use_default_setting(padapter);
+
+	/* RX LDPC */
+	if (TEST_FLAG(pvhtpriv->ldpc_cap, LDPC_VHT_ENABLE_RX))
+		vht_cap->cap |= IEEE80211_VHT_CAP_RXLDPC;
+
+	/* TX STBC */
+	if (TEST_FLAG(pvhtpriv->stbc_cap, STBC_VHT_ENABLE_TX))
+		vht_cap->cap |= IEEE80211_VHT_CAP_TXSTBC;
+
+	/* RX STBC */
+	if (TEST_FLAG(pvhtpriv->stbc_cap, STBC_VHT_ENABLE_RX)) {
+		switch (rf_type) {
+		case RF_1T1R:
+			vht_cap->cap |= IEEE80211_VHT_CAP_RXSTBC_1;/*RX STBC One spatial stream*/
+			break;
+		case RF_2T2R:
+		case RF_1T2R:
+			vht_cap->cap |= IEEE80211_VHT_CAP_RXSTBC_2;/*RX STBC Two spatial streams*/
+			break;
+		case RF_3T3R:
+		case RF_3T4R:
+		case RF_4T4R:
+			vht_cap->cap |= IEEE80211_VHT_CAP_RXSTBC_3;/*RX STBC Three spatial streams*/
+			break;
+		default:
+			DBG_871X("[warning] rf_type %d is not expected\n", rf_type);
+			break;
+		}
+	}
+
+	/* switch (rf_type) {
+	case RF_1T1R:
+		vht_cap->vht_mcs.tx_highest = MAX_BIT_RATE_80MHZ_NSS1;
+		vht_cap->vht_mcs.rx_highest = MAX_BIT_RATE_80MHZ_NSS1;
+		break;
+	case RF_2T2R:
+	case RF_1T2R:
+		vht_cap->vht_mcs.tx_highest = MAX_BIT_RATE_80MHZ_NSS2;
+    	vht_cap->vht_mcs.rx_highest = MAX_BIT_RATE_80MHZ_NSS2;
+		break;
+	case RF_3T3R:
+	case RF_3T4R:
+	case RF_4T4R:
+		vht_cap->vht_mcs.tx_highest = MAX_BIT_RATE_80MHZ_NSS3;
+		vht_cap->vht_mcs.rx_highest = MAX_BIT_RATE_80MHZ_NSS3;
+		break;
+	default:
+		DBG_871X("[warning] rf_type %d is not expected\n", rf_type);
+		break;
+	} */
+
+	/* MCS map */
+	vht_cap->vht_mcs.tx_mcs_map = pvhtpriv->vht_mcs_map[0] | (pvhtpriv->vht_mcs_map[1] << 8);
+	vht_cap->vht_mcs.rx_mcs_map = vht_cap->vht_mcs.tx_mcs_map;
+
+	if (rf_type == RF_1T1R) {
+		vht_cap->vht_mcs.tx_highest = MAX_BIT_RATE_80MHZ_NSS1;
+		vht_cap->vht_mcs.rx_highest = MAX_BIT_RATE_80MHZ_NSS1;
+	}
+
+	if (pvhtpriv->sgi_80m)
+		vht_cap->cap |= IEEE80211_VHT_CAP_SHORT_GI_80;
+
+	vht_cap->cap |= (pvhtpriv->ampdu_len << IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_SHIFT);
+}
+
+static void rtw_cfg80211_init_vht_capab(_adapter *padapter, struct ieee80211_sta_vht_cap *vht_cap, u8 rf_type)
+{
+	vht_cap->vht_supported = _TRUE;
+	rtw_cfg80211_init_vht_capab_ex(padapter, vht_cap, rf_type);
+}
+
 void rtw_cfg80211_init_wiphy(_adapter *padapter)
 {
 	u8 rf_type;
@@ -6115,8 +6295,10 @@ void rtw_cfg80211_init_wiphy(_adapter *padapter)
 	if (padapter->registrypriv.wireless_mode & WIRELESS_11A)
 	{
 		bands = wiphy->bands[IEEE80211_BAND_5GHZ];
-		if(bands)
+		if(bands) {
 			rtw_cfg80211_init_ht_capab(&bands->ht_cap, IEEE80211_BAND_5GHZ, rf_type);
+			rtw_cfg80211_init_vht_capab(padapter, &bands->vht_cap, rf_type);
+		}
 	}
 
 	/* init regulary domain */

@@ -1804,7 +1804,7 @@ int rtw_check_beacon_data(_adapter *padapter, u8 *pbuf,  int len)
 				case RF_2T2R:
 					set_mcs_rate_by_mask(HT_CAP_ELE_RX_MCS_MAP(pht_cap), MCS_RATE_2R);
 					break;
-				case RF_3T3R:
+				case RF_2T3R:
 					set_mcs_rate_by_mask(HT_CAP_ELE_RX_MCS_MAP(pht_cap), MCS_RATE_3R);
 					break;
 				default:
