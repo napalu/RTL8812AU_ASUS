@@ -6,7 +6,7 @@ Modified to compile against kernels > 3.18 - tested on Archlinux x86_64 against 
 earlier kernels. Builds on x86_64 as default. Change platform as needed in the MakeFile under section "Platform Related".
 
 Updated to support VHT (802.11ac) mode using changes from [uminokoe](https://github.com/diederikdehaas/rtl8812AU/pull/14/commits/445b475ac5c1372e458134d9a7394b882b0bbb1f).
-Using the changed the card then connects in 802.11ac mode (previously would connect as 802.11n on Linux).
+The card then connects in 802.11ac mode (previously would connect as 802.11n on Linux).
 
 Issues:
 - although the bit rate is listed as 867 Mb/s I have been unable in my tests to get
@@ -15,9 +15,11 @@ throughput greater than 250-350Mbs (give or take a few megabits) on my setup (As
  any driver changes you made.
 - Although the USB AC-56 is supposed to be USB 3.0 capable, `lsusb` lists it as a 2.0 USB
 device. Windows 10 appears to also see it as as USB 2.0 device using Windows stock drivers.
-The adapter is first shown as as USB 3.0 (Superspeed) device after installing the Asus
-specific drivers. Whether this is simply a "display" problem or whether the USB AC-56
-is then actually bound to the USB 2.0 max throughput of 480Mbs is as yet unclear. Again any insights
+The adapter is first recognized as a USB 3.0 (Superspeed) device after installing the Asus
+specific drivers. This may indicate that specific code exists in the Windows driver to switch
+ths USB mode from 2.0 to 3.0 which is not present in the source version provided by Asus.
+If so it's a shame because it means that the  USB AC-56 is then actually bound to the USB 2.0
+max throughput of 480Mbs on Linux making it a good but expensive 802.11n adapter. Again any insights
 would be greatly appreciated.
 
 To build:
