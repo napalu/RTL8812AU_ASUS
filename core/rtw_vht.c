@@ -189,7 +189,7 @@ void	rtw_vht_use_default_setting(_adapter *padapter)
 
 	rtw_hal_get_hwreg(padapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
 
-	if (rf_type == RF_2T3R)
+	if (rf_type == RF_3T3R)
 		pvhtpriv->vht_mcs_map[0] = 0xea;	/* support 1SS MCS 0~9 2SS MCS 0~9 3SS MCS 0~9 */
 	else if(rf_type == RF_2T2R)
 		pvhtpriv->vht_mcs_map[0] = 0xfa;	/* support 1SS MCS 0~9 2SS MCS 0~9 */
@@ -429,7 +429,7 @@ void VHT_caps_handler(_adapter *padapter, PNDIS_802_11_VARIABLE_IEs pIE)
 		vht_mcs[0] |= 0xfc;
 	else if (rf_type == RF_2T2R)
 		vht_mcs[0] |= 0xf0;
-	else if (rf_type == RF_2T3R)
+	else if (rf_type == RF_3T3R)
 		vht_mcs[0] |= 0xc0;
 
 	_rtw_memcpy(pvhtpriv->vht_mcs_map, vht_mcs, 2);
@@ -536,7 +536,7 @@ u32	rtw_build_vht_op_mode_notify_ie(_adapter *padapter, u8 *pbuf, u8 bw)
 	chnl_width = bw;
 
 	rtw_hal_get_hwreg(padapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
-	if(rf_type == RF_2T3R)
+	if(rf_type == RF_3T3R)
 		rx_nss = 3;
 	else if(rf_type == RF_2T2R)
 		rx_nss = 2;

@@ -4017,7 +4017,7 @@ unsigned int rtw_restructure_ht_ie(_adapter *padapter, u8 *in_ie, u8 *out_ie, ui
 			set_mcs_rate_by_mask(ht_capie.supp_mcs_set, MCS_RATE_2R);
 		#endif //CONFIG_DISABLE_MCS13TO15
 		break;
-	case RF_2T3R:
+	case RF_3T3R:
 		set_mcs_rate_by_mask(ht_capie.supp_mcs_set, MCS_RATE_3R);
 		break;
 	default:
@@ -4218,7 +4218,7 @@ void rtw_update_ht_cap(_adapter *padapter, u8 *pie, uint ie_len, u8 channel)
 				set_mcs_rate_by_mask(pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate, MCS_RATE_2R);
 #endif //CONFIG_DISABLE_MCS13TO15
 				break;
-			case RF_2T3R:
+			case RF_3T3R:
 				set_mcs_rate_by_mask(pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate, MCS_RATE_3R);
 				break;
 			default:

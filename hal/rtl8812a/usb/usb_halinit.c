@@ -1017,7 +1017,7 @@ usb_AggSettingRxUpdate_8812A(
 				//Adjust DMA page and thresh.
 				temp = pHalData->RegAcUsbDmaSize | (pHalData->RegAcUsbDmaTime<<8);
 				rtw_write16(Adapter, REG_RXDMA_AGG_PG_TH, temp); 
-				rtw_write8(Adapter, REG_RXDMA_AGG_PG_TH+3, BIT(7)); //for dma agg , 0x280[31]¡GBIT_RXDMA_AGG_OLD_MOD, set 1
+				rtw_write8(Adapter, REG_RXDMA_AGG_PG_TH+3, BIT(7)); //for dma agg , 0x280[31]ï¿½GBIT_RXDMA_AGG_OLD_MOD, set 1
 			}
 			break;
 		case USB_RX_AGG_USB:

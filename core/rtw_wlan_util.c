@@ -149,8 +149,8 @@ u8 networktype_to_raid_ex(_adapter *adapter, struct sta_info *psta)
 	if(cur_rf_type == RF_1T1R) {
 		rf_type = RF_1T1R;
 	}
-	else if(cur_rf_type == RF_2T3R)
-		rf_type = RF_2T3R;
+	else if(cur_rf_type == RF_3T3R)
+		rf_type = RF_3T3R;
 	else if(IsSupportedVHT(psta->wireless_mode)) {
 		if(psta->ra_mask & 0xffc00000)
 			rf_type = RF_2T2R;
@@ -181,7 +181,7 @@ u8 networktype_to_raid_ex(_adapter *adapter, struct sta_info *psta)
 				raid = RATEID_IDX_GN_N1SS;
 			else if (rf_type == RF_2T2R || custom_rf_type == RF_2T4R)
 				raid = RATEID_IDX_GN_N2SS;
-			else if (rf_type == RF_2T3R)
+			else if (rf_type == RF_3T3R)
 				raid = RATEID_IDX_BGN_3SS;
 			else
 				DBG_871X("RF type error!(rf_type=%d)\n", rf_type);
@@ -193,7 +193,7 @@ u8 networktype_to_raid_ex(_adapter *adapter, struct sta_info *psta)
 					raid = RATEID_IDX_BGN_20M_1SS_BN;
 				else if (rf_type == RF_2T2R || custom_rf_type == RF_2T4R)
 					raid = RATEID_IDX_BGN_20M_2SS_BN;
-				else if(rf_type == RF_2T3R)
+				else if(rf_type == RF_3T3R)
 					raid = RATEID_IDX_BGN_3SS;
 				else
 				DBG_871X("RF type error!(rf_type=%d)\n", rf_type);
@@ -202,7 +202,7 @@ u8 networktype_to_raid_ex(_adapter *adapter, struct sta_info *psta)
 					raid = RATEID_IDX_BGN_40M_1SS;
 				else if (rf_type == RF_2T2R || custom_rf_type == RF_2T4R)
 					raid = RATEID_IDX_BGN_40M_2SS;
-				else if(rf_type == RF_2T3R)
+				else if(rf_type == RF_3T3R)
 					raid = RATEID_IDX_BGN_3SS;
 				else
 				DBG_871X("RF type error!(rf_type=%d)\n", rf_type);
@@ -214,7 +214,7 @@ u8 networktype_to_raid_ex(_adapter *adapter, struct sta_info *psta)
 				raid = RATEID_IDX_VHT_1SS;
 			else if (rf_type == RF_2T2R || custom_rf_type == RF_2T4R)
 				raid = RATEID_IDX_VHT_2SS;
-			else if (rf_type == RF_2T3R)
+			else if (rf_type == RF_3T3R)
 				raid = RATEID_IDX_VHT_3SS;
 			else
 				DBG_871X("RF type error!(rf_type=%d)\n", rf_type);
@@ -226,7 +226,7 @@ u8 networktype_to_raid_ex(_adapter *adapter, struct sta_info *psta)
 					raid = RATEID_IDX_VHT_1SS;
 				else if (rf_type == RF_2T2R || custom_rf_type == RF_2T4R)
 					raid = RATEID_IDX_VHT_2SS;
-				else if (rf_type == RF_2T3R)
+				else if (rf_type == RF_3T3R)
 					raid = RATEID_IDX_VHT_3SS;
 				else
 					DBG_871X("RF type error!(rf_type=%d)\n", rf_type);
@@ -237,7 +237,7 @@ u8 networktype_to_raid_ex(_adapter *adapter, struct sta_info *psta)
 					raid = RATEID_IDX_MIX1;
 				else if (rf_type == RF_2T2R || custom_rf_type == RF_2T4R)
 					raid = RATEID_IDX_MIX2;
-				else if (rf_type == RF_2T3R)
+				else if (rf_type == RF_3T3R)
 					raid = RATEID_IDX_VHT_3SS;
 				else
 					DBG_871X("RF type error!(rf_type=%d)\n", rf_type);
@@ -1774,7 +1774,7 @@ void HT_caps_handler(_adapter *padapter, PNDIS_802_11_VARIABLE_IEs pIE)
 			set_mcs_rate_by_mask(pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate, MCS_RATE_2R);
 #endif //CONFIG_DISABLE_MCS13TO15
 			break;
-		case RF_2T3R:
+		case RF_3T3R:
 			set_mcs_rate_by_mask(pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate, MCS_RATE_3R);
 			break;
 		default:
